@@ -9,6 +9,7 @@
 #include "vec3.h"
 #include "CImg.h"
 #include "Objeto.h"
+#include "Luz.h"
 #include <vector>
 using namespace std;
 using namespace cimg_library;
@@ -23,7 +24,9 @@ public:
     Camara() {}
     void configurar(float _near, float fov, int ancho, int alto,
                     vec3 pos_eye, vec3 center, vec3 up);
-    void renderizar();
+    void renderizar(int x);
+    void renderizar2(int x);
+    vec3 iluminacion(Rayo &rayo, Luz &luz, vector<Objeto*> &objetos, int prof);
 
 };
 
