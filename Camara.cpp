@@ -79,14 +79,16 @@ void Camara::renderizar2(int x) {
     esf.setConstantes(0.8, 0.2, 32, 0.9);
     Esfera esf2(vec3(-10,0,10), 6, vec3(1,0,0));
     esf2.setConstantes(0.8, 0.2, 32, 0.9);
+    Plano plano(vec3(0,-10,0), vec3(0,1,0), vec3(0,1,1));
+    plano.setConstantes(0.3,0.1,8,0.4);
     vector<Objeto*> objetos;
     objetos.emplace_back(&esf);
     objetos.emplace_back(&esf2);
-    vec3 color, Pi, N;
-    float t, t_tmp;
+    objetos.emplace_back(&plano);
+    vec3 color;
     for(int x=0;  x < w; x++) {
         for (int y = 0; y < h; y++) {
-            if (x==330 and y==h-305) {
+            if (x==246 and y==h-390) {
                 cout << "aqui";
             }
             dir = ze * (-f) + ye * a * (y / h - 0.5) + xe * b * (x / w - 0.5);
@@ -125,15 +127,31 @@ vec3 Camara::iluminacion(Rayo &rayo, Luz &luz, vector<Objeto*> &objetos, int pro
 
     if ( interseccion ) {
         // color = esf.color;
+        Pi = Pi + 0.00005*N;
         vec3 ambiente = vec3(1,1,1) * 0.2;
+        float color_difuso = 0, color_especular = 0;
         vec3 L = luz.pos - Pi;
+        float L_dist = L.modulo();
+        // sombra
         L.normalize();
-        float difuso = L.punto(N);
-        float color_difuso = objeto->kd * max(0.0f, difuso);
-        // iluminacion especular
-        vec3 R = 2 * difuso * N - L;
+        Rayo rayo_sombra(Pi, L);
+        bool en_sombra = false;
+        for (auto &pObj: objetos) {
+            if (pObj->intersectar(rayo_sombra, t_tmp, Pi_tmp, N_tmp)){
+                if ((Pi_tmp - Pi).modulo() < L_dist) {
+                    en_sombra = true;
+                    break;
+                }
+            }
+        }
         vec3 V = -rayo.dir;
-        float color_especular = objeto->ks * pow( max(0.0f, R.punto(V)), objeto->n);
+        if (not en_sombra){
+            float difuso = L.punto(N);
+            color_difuso = objeto->kd * max(0.0f, difuso);
+            // iluminacion especular
+            vec3 R = 2 * difuso * N - L;
+            color_especular = objeto->ks * pow( max(0.0f, R.punto(V)), objeto->n);
+        }
         // reflexion
         vec3 color_reflexion(0,0,0);
         if ( objeto->ke > 0 and prof + 1 <= 7){
@@ -142,7 +160,6 @@ vec3 Camara::iluminacion(Rayo &rayo, Luz &luz, vector<Objeto*> &objetos, int pro
             Rayo rayo_reflejado(Pi+0.005*N, dir_ref);
             color_reflexion = iluminacion(rayo_reflejado, luz, objetos, prof+1);
         }
-
         color = objeto->color * (ambiente + luz.color*(color_difuso + color_especular)) + objeto->ke*color_reflexion;
         color.max_to_one();
     }

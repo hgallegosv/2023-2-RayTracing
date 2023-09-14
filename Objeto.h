@@ -44,6 +44,24 @@ public:
         return true;
     }
 };
+class Plano : public Objeto {
+public:
+    vec3 punto, normal;
+    Plano(vec3 _punto, vec3 _normal, vec3 col):punto{_punto}, normal{_normal}, Objeto(col) { normal.normalize(); }
+    bool intersectar(Rayo ray, float &t, vec3 &Pi, vec3 &N) {
+        float den = (ray.dir).punto(normal);
+        if (den == 0) {
+            return false;
+        }
+        t = (punto - ray.ori).punto(normal) / den;
+        if (t <= 0){
+            return false;
+        }
+        N = normal;
+        Pi = ray.ori + t * ray.dir;
+        return true;
+    }
+};
 
 
 #endif //CG2023_OBJETO_H
