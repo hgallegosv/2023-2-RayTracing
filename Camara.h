@@ -26,7 +26,7 @@ public:
                     vec3 pos_eye, vec3 center, vec3 up);
     void renderizar(int x);
     void renderizar2(int x);
-    vec3 iluminacion(Rayo &rayo, Luz &luz, vector<Objeto*> &objetos, int prof);
+    vec3 iluminacion(Rayo &rayo, vector<Luz*> &luces, vector<Objeto*> &objetos, int prof);
 
     void fresnel(vec3 &I, vec3 &N, float &ior, float &kr);
     vec3 refract(vec3 &I, vec3 &N, float &ior);
