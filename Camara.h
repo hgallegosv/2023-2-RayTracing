@@ -28,6 +28,8 @@ public:
     void renderizar2(int x);
     vec3 iluminacion(Rayo &rayo, Luz &luz, vector<Objeto*> &objetos, int prof);
 
+    void fresnel(vec3 &I, vec3 &N, float &ior, float &kr);
+    vec3 refract(vec3 &I, vec3 &N, float &ior);
 };
 
 

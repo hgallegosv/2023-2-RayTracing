@@ -78,12 +78,15 @@ void Camara::renderizar2(int x) {
     Esfera esf(vec3(2,0,0), 8, vec3(0,0,1));
     esf.setConstantes(0.8, 0.2, 32, 0.9);
     Esfera esf2(vec3(-10,0,10), 6, vec3(1,0,0));
-    esf2.setConstantes(0.8, 0.2, 32, 0.9);
+    esf2.setConstantes(0.8, 0.2, 32, 0, true, 1.5);
+    Esfera esf3(vec3(-30,0,-50), 10, vec3(1,1,0));
+    esf3.setConstantes(0.8, 0.2, 32, 0, true, 1.5);
     Plano plano(vec3(0,-10,0), vec3(0,1,0), vec3(0,1,1));
     plano.setConstantes(0.3,0.1,8,0.4);
     vector<Objeto*> objetos;
     objetos.emplace_back(&esf);
     objetos.emplace_back(&esf2);
+    objetos.emplace_back(&esf3);
     objetos.emplace_back(&plano);
     vec3 color;
     for(int x=0;  x < w; x++) {
@@ -145,23 +148,80 @@ vec3 Camara::iluminacion(Rayo &rayo, Luz &luz, vector<Objeto*> &objetos, int pro
             }
         }
         vec3 V = -rayo.dir;
-        if (not en_sombra){
-            float difuso = L.punto(N);
-            color_difuso = objeto->kd * max(0.0f, difuso);
-            // iluminacion especular
-            vec3 R = 2 * difuso * N - L;
-            color_especular = objeto->ks * pow( max(0.0f, R.punto(V)), objeto->n);
-        }
-        // reflexion
+
+
         vec3 color_reflexion(0,0,0);
-        if ( objeto->ke > 0 and prof + 1 <= 7){
-            vec3 dir_ref = 2*V.punto(N)*N - V;
-            dir_ref.normalize();
-            Rayo rayo_reflejado(Pi+0.005*N, dir_ref);
-            color_reflexion = iluminacion(rayo_reflejado, luz, objetos, prof+1);
+
+        // refraccion
+        vec3 refractionColor(0,0,0);
+        if (objeto->transparente and prof + 1 <= 7) {
+            // compute fresnel
+            float kr;
+            fresnel(rayo.dir, N, objeto->ior, kr);
+            bool outside = rayo.dir.punto(N) < 0;
+            vec3 bias = 0.005 * N;
+            // compute refraction if it is not a case of total internal reflection
+            if (kr < 1) {
+                vec3 refractionDirection = refract(rayo.dir, N, objeto->ior);
+                refractionDirection.normalize();
+                vec3 refractionRayOrig = outside ? Pi - bias : Pi + bias;
+                Rayo rayo_refraccion(refractionRayOrig, refractionDirection);
+                refractionColor = iluminacion(rayo_refraccion, luz, objetos, prof + 1);
+            }
+            vec3 reflectionDirection = 2*V.punto(N)*N - V; //reflect(rayo.dir, N);
+            reflectionDirection.normalize();
+            vec3 reflectionRayOrig = outside ? Pi + bias : Pi - bias;
+            Rayo rayo_reflexion(reflectionRayOrig,reflectionDirection);
+            vec3 reflectionColor = iluminacion(rayo_reflexion,  luz, objetos, prof + 1);
+
+            // mix the two
+            refractionColor = reflectionColor * kr + refractionColor * (1 - kr);
+        } else {
+            if (not en_sombra){
+                float difuso = L.punto(N);
+                color_difuso = objeto->kd * max(0.0f, difuso);
+                // iluminacion especular
+                vec3 R = 2 * difuso * N - L;
+                color_especular = objeto->ks * pow( max(0.0f, R.punto(V)), objeto->n);
+            }
+            if (objeto->ke > 0 and prof + 1 <= 7) {        // reflexion
+                vec3 dir_ref = 2 * V.punto(N) * N - V;
+                dir_ref.normalize();
+                Rayo rayo_reflejado(Pi + 0.005 * N, dir_ref);
+                color_reflexion = objeto->ke * iluminacion(rayo_reflejado, luz, objetos, prof + 1);
+            }
         }
-        color = objeto->color * (ambiente + luz.color*(color_difuso + color_especular)) + objeto->ke*color_reflexion;
+        color = objeto->color * (ambiente + luz.color*(color_difuso + color_especular)) + color_reflexion + refractionColor;
         color.max_to_one();
     }
     return color;
+}
+void Camara::fresnel(vec3 &I, vec3 &N, float &ior, float &kr) {
+    float cosi = clamp(-1, 1, I.punto(N));
+    float etai = 1, etat = ior;
+    if (cosi > 0) { std::swap(etai, etat); }
+    // Compute sini using Snell's law
+    float sint = etai / etat * sqrtf(std::max(0.f, 1 - cosi * cosi));
+    // Total internal reflection
+    if (sint >= 1) {
+        kr = 1;
+    }
+    else {
+        float cost = sqrtf(std::max(0.f, 1 - sint * sint));
+        cosi = fabsf(cosi);
+        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        kr = (Rs * Rs + Rp * Rp) / 2;
+    }
+    // As a consequence of the conservation of energy, the transmittance is given by:
+    // kt = 1 - kr;
+}
+vec3 Camara::refract(vec3 &I, vec3 &N, float &ior) {
+    float cosi = clamp(-1, 1, I.punto(N));
+    float etai = 1, etat = ior;
+    vec3 n = N;
+    if (cosi < 0) { cosi = -cosi; } else { std::swap(etai, etat); n= -N; }
+    float eta = etai / etat;
+    float k = 1 - eta * eta * (1 - cosi * cosi);
+    return k < 0 ? vec3(0,0,0) : eta * I + (eta * cosi - sqrtf(k)) * n;
 }

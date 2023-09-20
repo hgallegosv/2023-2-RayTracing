@@ -11,10 +11,13 @@ class Objeto {
 public:
     vec3 color;
     float kd, ks, n;
-    float ke;
+    float ke, ior;
+    bool transparente;
     Objeto(vec3 col):color{col}{}
-    void setConstantes(float _kd, float _ks, float _n, float _ke=0) {
+    void setConstantes(float _kd, float _ks, float _n, float _ke=0, bool trans=false, float _ior=1) {
         kd=_kd; ks=_ks; n=_n; ke=_ke;
+        transparente = trans;
+        ior = _ior;
     }
     virtual bool intersectar(Rayo ray, float &t, vec3 &Pi, vec3 &N)=0;
 };

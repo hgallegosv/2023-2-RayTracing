@@ -19,7 +19,7 @@ void escena1(){
 void escena2(){
     Camara cam;
     cam.configurar(3, 60, 800, 600,
-                   vec3(30,5,30),
+                   vec3(0,10,60),
                    vec3(0,0,0),
                    vec3(0,1,0));
     cam.renderizar2(1);
